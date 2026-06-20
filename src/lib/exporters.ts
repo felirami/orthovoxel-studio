@@ -8,6 +8,7 @@ function addVoxelMesh(scene: THREE.Scene, model: VoxelModel) {
   const offsetY = (model.height - 1) / 2;
   const offsetZ = (model.depth - 1) / 2;
   const group = new THREE.Group();
+  group.frustumCulled = false;
   const materials: THREE.MeshBasicMaterial[] = [];
   const byColor = new Map<string, VoxelModel["voxels"]>();
 
@@ -20,6 +21,7 @@ function addVoxelMesh(scene: THREE.Scene, model: VoxelModel) {
   byColor.forEach((voxels, displayColor) => {
     const material = new THREE.MeshBasicMaterial({ color: displayColor });
     const mesh = new THREE.InstancedMesh(geometry, material, voxels.length);
+    mesh.frustumCulled = false;
 
     voxels.forEach((voxel, index) => {
       matrix.makeTranslation(voxel.x - offsetX, voxel.y - offsetY, voxel.z - offsetZ);
@@ -43,7 +45,7 @@ function setCamera(camera: THREE.OrthographicCamera, model: VoxelModel, angle: n
   camera.right = (frustum * aspect) / 2;
   camera.top = frustum / 2;
   camera.bottom = -frustum / 2;
-  camera.near = -maxAxis * 8;
+  camera.near = 0.1;
   camera.far = maxAxis * 8;
   camera.zoom = Math.max(0.25, Math.min(4, size / 512));
 

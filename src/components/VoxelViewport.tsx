@@ -48,6 +48,9 @@ export function VoxelViewport({
   const colorRef = useRef(color);
   const selectedRef = useRef(selectedKeys);
   const cameraRef = useRef({ azimuth, tilt });
+  const onCameraChangeRef = useRef(onCameraChange);
+  const onModelChangeRef = useRef(onModelChange);
+  const onSelectionChangeRef = useRef(onSelectionChange);
   const dragRef = useRef({ active: false, startX: 0, startY: 0, azimuth, tilt, moved: false });
 
   useEffect(() => {
@@ -69,6 +72,18 @@ export function VoxelViewport({
   useEffect(() => {
     cameraRef.current = { azimuth, tilt };
   }, [azimuth, tilt]);
+
+  useEffect(() => {
+    onCameraChangeRef.current = onCameraChange;
+  }, [onCameraChange]);
+
+  useEffect(() => {
+    onModelChangeRef.current = onModelChange;
+  }, [onModelChange]);
+
+  useEffect(() => {
+    onSelectionChangeRef.current = onSelectionChange;
+  }, [onSelectionChange]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -144,7 +159,7 @@ export function VoxelViewport({
       dragRef.current.moved = true;
 
       if (event.buttons === 2 || event.altKey || event.metaKey || event.button === 2) {
-        onCameraChange(
+        onCameraChangeRef.current(
           dragRef.current.azimuth + dx * 0.35,
           THREE.MathUtils.clamp(dragRef.current.tilt + dy * 0.22, 5, 86)
         );
@@ -182,7 +197,7 @@ export function VoxelViewport({
       renderer.domElement.remove();
       stateRef.current = null;
     };
-  }, [onCameraChange]);
+  }, []);
 
   useEffect(() => {
     rebuildMesh();
@@ -237,6 +252,7 @@ export function VoxelViewport({
     const offsetY = (model.height - 1) / 2;
     const offsetZ = (model.depth - 1) / 2;
     const group = new THREE.Group();
+    group.frustumCulled = false;
     const materials: THREE.MeshBasicMaterial[] = [];
     const meshes: THREE.InstancedMesh[] = [];
     const byColor = new Map<string, Voxel[]>();
@@ -251,6 +267,7 @@ export function VoxelViewport({
     byColor.forEach((voxels, displayColor) => {
       const material = new THREE.MeshBasicMaterial({ color: displayColor });
       const mesh = new THREE.InstancedMesh(geometry, material, voxels.length);
+      mesh.frustumCulled = false;
 
       voxels.forEach((voxel, index) => {
         matrix.makeTranslation(voxel.x - offsetX, voxel.y - offsetY, voxel.z - offsetZ);
@@ -287,7 +304,7 @@ export function VoxelViewport({
     state.camera.right = (frustum * aspect) / 2;
     state.camera.top = frustum / 2;
     state.camera.bottom = -frustum / 2;
-    state.camera.near = -maxAxis * 8;
+    state.camera.near = 0.1;
     state.camera.far = maxAxis * 8;
 
     const theta = THREE.MathUtils.degToRad(cameraRef.current.azimuth);
@@ -331,17 +348,17 @@ export function VoxelViewport({
     const activeTool = toolRef.current;
 
     if (activeTool === "erase") {
-      onModelChange(removeVoxel(modelRef.current, voxel));
+      onModelChangeRef.current(removeVoxel(modelRef.current, voxel));
       return;
     }
 
     if (activeTool === "paint") {
-      onModelChange(setVoxelColor(modelRef.current, voxel, colorRef.current));
+      onModelChangeRef.current(setVoxelColor(modelRef.current, voxel, colorRef.current));
       return;
     }
 
     if (activeTool === "fill") {
-      onModelChange(floodFillVoxels(modelRef.current, voxel, colorRef.current));
+      onModelChangeRef.current(floodFillVoxels(modelRef.current, voxel, colorRef.current));
       return;
     }
 
@@ -355,13 +372,13 @@ export function VoxelViewport({
         next.add(key);
       }
 
-      onSelectionChange(next);
+      onSelectionChangeRef.current(next);
       return;
     }
 
     if (activeTool === "add" && hit.face) {
       const normal = hit.face.normal.clone().round();
-      onModelChange(
+      onModelChangeRef.current(
         addVoxelAt(
           modelRef.current,
           {
